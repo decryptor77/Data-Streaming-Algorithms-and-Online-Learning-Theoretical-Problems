@@ -1,6 +1,7 @@
 # Data-Streaming-Algorithms-and-Online-Learning-Theoretical-Problems
 
-A public collection of theoretical solutions in **Data Streaming Algorithms and Online Learning**, with emphasis on sketching, approximation, sliding-window models, and rigorous asymptotic analysis.
+A public collection of theoretical solutions in **Data Streaming Algorithms & Online Learning**, with emphasis on sketching, approximation, sliding-window models, and rigorous asymptotic analysis.<br>
+Completed during my MSc in Data Science & Machine Learning at Reichman University, in the frame of a Data Streaming Algorithms & Online Learning course.
 
 Streaming algorithms study how to process large or potentially unbounded data streams under strict resource constraints. Instead of storing the full input, the algorithm maintains a compact summary, or **sketch**, that supports approximate answers with provable guarantees. Typical goals in this area include:
 - using sublinear memory
@@ -23,7 +24,7 @@ Current and planned topics include:
 
 ---
 
-## Included solution
+## Included solutions
 
 ### Exponential Histograms in the Sliding Window Model
 
@@ -76,6 +77,93 @@ The solution derives the following key guarantees:
 
 ---
 
+
+### Estimating Hamming Distance Between Two Streams Without Storing Them
+
+#### General problem
+
+A basic question in streaming algorithms is how to compare two synchronized streams without storing them explicitly. In this problem, we receive two binary streams
+$A = a_1, a_2, \dots, a_n$ and $B = b_1, b_2, \dots, b_n$,
+where at each time step $t$ we observe the pair $(a_t, b_t)$ only once and cannot return to past updates.
+
+The goal is to estimate the **Hamming distance**
+$H$ between the two streams, defined as the number of indices $t$ such that $a_t \ne b_t$.
+
+The challenge is to do this in the streaming model:
+- with only a small sketch
+- with one-pass updates
+- with provable approximation guarantees
+- without storing the full streams
+
+This is a natural sketching problem, because the exact answer depends on all positions, yet the streaming setting forbids full storage.
+
+#### What the solution addresses
+
+The solution shows that the problem can be reduced to estimating the second frequency moment $F_2$, and therefore can be solved using an **AMS sketch**.
+
+**1. Reduction to an $F_2$ problem**  
+Define a derived stream
+$x_t = a_t - b_t$.
+
+Since $a_t, b_t \in \{0,1\}$, each value satisfies
+$x_t \in \{-1,0,1\}$.
+
+Now:
+- if $a_t = b_t$, then $x_t = 0$
+- if $a_t \ne b_t$, then $x_t = \pm 1$
+
+Therefore,
+$H = \sum_{t=1}^n x_t^2$.
+
+So the Hamming distance is exactly the second moment of the derived stream, which makes the problem an instance of $F_2$ estimation.
+
+**2. Sketch construction and update rule**  
+The solution uses $k$ independent random sign hash functions and maintains $k$ AMS counters.
+For each arriving pair $(a_t,b_t)$:
+- compute $x_t = a_t - b_t$
+- update every counter by adding the signed contribution of $x_t$
+
+At the end, the estimator is the average of the squared counters:
+$\hat H = \frac{1}{k}\sum_{i=1}^k Z_i^2$.
+
+This gives a one-pass streaming algorithm with a small sketch and constant-time logic per counter update.
+
+**3. Accuracy guarantee**  
+Using the standard AMS fact that
+$\mathrm{Var}(Z^2) \le 2F_2^2$,
+and here $F_2 = H$, the solution shows
+$\mathrm{Var}(\hat H) \le \frac{2H^2}{k}$.
+
+Then, by Chebyshev’s inequality,
+$\Pr(|\hat H - H| \ge \varepsilon H) \le \frac{2}{k\varepsilon^2}$.
+
+Choosing
+$k = \frac{20}{\varepsilon^2}$
+yields
+$\Pr(|\hat H - H| \le \varepsilon H) \ge 0.9$.
+
+Thus the sketch achieves relative error $O(\varepsilon)$ with constant success probability.
+
+**4. Memory complexity**  
+Each counter stores a value whose magnitude is at most $n$, so each counter requires $O(\log n)$ bits.
+With $k = O(\varepsilon^{-2})$ counters, the counter storage is
+$O(\varepsilon^{-2}\log n)$ bits.
+
+The random hash functions can also be stored with $O(\log n)$ bits each using standard bounded-independence constructions, so the total sketch size remains
+$O(\varepsilon^{-2}\log n)$ bits.
+
+#### Solution approach in one paragraph
+
+The key idea is to transform the comparison problem into a moment-estimation problem. Instead of trying to remember where the two streams differ, the solution defines a derived stream whose entries are $-1$, $0$, or $1$ depending on the difference between the two current bits. The Hamming distance then becomes exactly the sum of squared derived values, namely an $F_2$ quantity. Once written in this form, the problem fits the AMS framework directly: maintain random signed linear projections of the stream, square them, and average. This yields a compact sketch with a clean proof of unbiasedness, variance control, and relative-error guarantees.
+
+#### Main guarantees
+
+The solution derives the following guarantees:
+- one-pass streaming algorithm
+- sketch update based on AMS counters
+- relative error at most $\varepsilon H$ with probability at least $0.9$
+- $O(\varepsilon^{-2}\log n)$ bits of memory
+
 ## Notes
 
 This repository is intended as a clean public presentation of theoretical streaming-algorithms work. The emphasis is on:
@@ -84,9 +172,10 @@ This repository is intended as a clean public presentation of theoretical stream
 - approximation guarantees
 - asymptotic analysis
 
-Additional solutions can be added in the same format:
-- title
-- general problem
-- what the solution addresses
-- solution approach
-- main guarantees
+---
+
+## Author
+
+**Noor Nashef**  
+MSc Data Science & Machine Learning student, Reichman University<br>
+BSc in Information Systems Engineering specialized in Machine Learning, Technion
